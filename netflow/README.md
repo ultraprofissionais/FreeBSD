@@ -20,8 +20,9 @@ ng_netflow_load="YES"
 ```
 
 You can load these now without having to reboot by typing:  
-
+```
 kldload netgraph ng_ether ng_socket ng_ksocket ng_tee ng_netflow  
+```
 
 Step-by-step:  
 1) Download the files  
