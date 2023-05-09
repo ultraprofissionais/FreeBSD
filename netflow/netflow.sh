@@ -1,6 +1,7 @@
 #!/bin/sh
 # NETFLOW - MANAGEMENT SCRIPT
-# startup script for netflow on FREEBSD..
+# management script for netflow on FREEBSD.
+# rename this file to netflow and put in /usr/local/sbin and do chmod +x on that
 #
 # to run this command it is necessary to create the file /etc/netflow.conf
 # in this file should contain:
