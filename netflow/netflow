@@ -1,0 +1,139 @@
+#!/bin/sh
+# NETFLOW - MANAGEMENT SCRIPT
+# startup script for netflow on FREEBSD..
+#
+# to run this command it is necessary to create the file /etc/netflow.conf
+# in this file should contain:
+# 
+# collector_server="IP_ADDRESS"
+# collector_port="PORT_NUMBER"
+#
+# interfaces="list of interfaces to be exported by netflow"
+# nameofinterface="unique id for netflow"
+#
+# more detail see netflow.conf example
+#
+# This script is provided by Ultra Profissionais and is licensed under the 
+# BSD license. You are free to use, modify and distribute this script as 
+# long as you comply with the BSD license terms.
+#
+case $1 in
+        createconf)
+                echo " " > /etc/ng_netflow.conf
+
+                config_file="/etc/netflow.conf"
+
+                # Check if the configuration file exists
+                if [ ! -f "$config_file" ]; then
+                  echo "Arquivo de configuração $config_file não encontrado."
+                  exit 1
+                fi
+
+                # Read collector server information
+                collector_server=$(awk -F'"' '/collector_server/ {print $2}' "$config_file")
+                collector_port=$(awk -F'"' '/collector_port/ {print $2}' "$config_file")
+
+                # Check if collector server information was found
+                if [ -z "$collector_server" ] || [ -z "$collector_port" ]; then
+                  echo "As informações de servidor de coleta não foram encontradas no arquivo de configuração."
+                  exit 1
+                fi
+
+                # Read interfaces
+                interfaces=$(awk -F'"' '/interfaces/ {print $2}' "$config_file")
+                interfaces_arr=$(echo "$interfaces" | tr -s ' ' | tr ' ' '\n')
+
+
+                for interface in $interfaces_arr; do
+
+                  interface=$(echo "$interface" | xargs)
+                  id=$(grep "$interface=" "$config_file" | awk -F= '{print $2}' | tr -d ' ' | tr -d '"')
+
+                  # Read interface ID
+                  if [ -n "$id" ]; then
+                    # for debug remove "#"
+                    #echo "$interface $id"
+
+                    # Write information to temporary configuration file
+                    echo "mkpeer $interface: netflow lower iface$id"                         >> /etc/ng_netflow.conf
+                    echo "name $interface:lower netflow$id"                                  >> /etc/ng_netflow.conf
+                    echo "connect $interface: netflow$id: upper out$id"                      >> /etc/ng_netflow.conf
+                    echo " "                                                                 >> /etc/ng_netflow.conf
+                    echo "mkpeer netflow$id: ksocket export9 inet/dgram/udp"                 >> /etc/ng_netflow.conf
+                    echo "msg netflow$id: setconfig {iface=$id conf=1}"                      >> /etc/ng_netflow.conf
+                    echo "msg netflow$id: settimeouts { inactive=15 active=1 }"              >> /etc/ng_netflow.conf
+                    echo "msg netflow$id: settemplate { time=10 packets=1000 }"              >> /etc/ng_netflow.conf
+                    echo " "                                                                 >> /etc/ng_netflow.conf
+                    echo "name netflow$id:export9 nfsock$id"                                 >> /etc/ng_netflow.conf
+                    echo "msg nfsock$id: connect inet/$collector_server:$collector_port"     >> /etc/ng_netflow.conf
+                    echo " " >> /etc/ng_netflow.conf
+                    echo " " >> /etc/ng_netflow.conf
+                  else
+                    echo "Interface ID was not found for $interface in the configuration file."
+                  fi
+                done
+
+                if [ -f "/etc/ng_netflow.conf" ]; then
+                  echo "OK"
+                else
+                  echo "Failed."
+                fi
+        ;;
+        removeconf)
+                echo " " > /etc/ng_netflow_rm.conf
+
+                config_file="/etc/netflow.conf"
+
+                # Check if the configuration file exists
+                if [ ! -f "$config_file" ]; then
+                  echo "Arquivo de configuração $config_file não encontrado."
+                  exit 1
+                fi
+
+                # Read interfaces
+                interfaces=$(awk -F'"' '/interfaces/ {print $2}' "$config_file")
+                interfaces_arr=$(echo "$interfaces" | tr -s ' ' | tr ' ' '\n')
+
+                for interface in $interfaces_arr; do
+                  interface=$(echo "$interface" | xargs)
+                  id=$(grep "$interface=" "$config_file" | awk -F= '{print $2}' | tr -d ' ' | tr -d '"')
+
+                  # Read interface ID
+                  if [ -n "$id" ]; then
+                    # for debug remove "#"
+                    #echo "$interface $id"
+
+                    # Write information to temporary configuration file
+                    echo "shutdown nfsock$id: "   >> /etc/ng_netflow_rm.conf
+                    echo "shutdown netflow$id: "  >> /etc/ng_netflow_rm.conf
+                  else
+                    echo "Interface ID was not found for $interface in the configuration file."
+                  fi
+                done
+
+                if [ -f "/etc/ng_netflow_rm.conf" ]; then
+                  echo "OK"
+                else
+                  echo "Failed."
+                fi
+
+        ;;
+        start)
+                echo -n "Generating ng_netflow.conf: "
+                $0 createconf
+                echo -n "Starting netflow: "
+                ngctl -f /etc/ng_netflow.conf
+                echo "OK"
+        ;;
+        stop)
+                echo -n "Preparing to remove ng_netflow.conf: "
+                $0 removeconf
+                echo -n "Stoping netflow: "
+                ngctl -f /etc/ng_netflow_rm.conf
+                echo "OK"
+        ;;
+        *)
+                echo "netflow management command:"
+                echo "netflow start | stop | help"
+        ;;
+esac
