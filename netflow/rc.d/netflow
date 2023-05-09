@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# PROVIDE: netflow
+
+# Add the following line to /etc/rc.conf to enable netflow:
+# netflow_enable="YES"
+
+. /etc/rc.subr
+
+name="netflow"
+rcvar=netflow_enable
+command="/usr/local/sbin/netflow"
+
+load_rc_config $name
+# Set defaults
+: ${netflow_enable="NO"}
+: ${netflow_pidfile="/var/run/${name}.pid"}
+
+start_cmd="/usr/local/sbin/netflow start"
+
+stop_cmd="/usr/local/sbin/netflow stop"
+
+run_rc_command "$1"
