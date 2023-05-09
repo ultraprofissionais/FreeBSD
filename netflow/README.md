@@ -9,6 +9,19 @@ After several tutorials and readings based on the FreeBSD manual and the article
 
 To use these files, just place them in their respective locations and give execution permission.
 
+First, we need to load some kernel modules at boot time – to do this we need to add the following lines to your /boot/loader.conf file:
+
+netgraph_load="YES"
+ng_ether_load="YES"
+ng_socket_load="YES"
+ng_ksocket_load="YES"
+ng_tee_load="YES"
+ng_netflow_load="YES"
+
+You can load these now without having to reboot by typing:
+
+kldload netgraph ng_ether ng_socket ng_ksocket ng_tee ng_netflow
+
 Step-by-step:
 1) Download the files
 
